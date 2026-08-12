@@ -32,10 +32,9 @@ if not SECRET_KEY:
     )
 
 
-DEBUG = os.getenv(
-    "DEBUG",
-    "True",
-).lower() == "true"
+DEBUG = (
+    os.getenv("DEBUG", "True").lower() == "true"
+)
 
 
 # ============================================================
@@ -68,7 +67,10 @@ render_hostname = os.getenv(
     "RENDER_EXTERNAL_HOSTNAME"
 )
 
-if render_hostname and render_hostname not in ALLOWED_HOSTS:
+if (
+    render_hostname
+    and render_hostname not in ALLOWED_HOSTS
+):
     ALLOWED_HOSTS.append(
         render_hostname
     )
@@ -81,6 +83,9 @@ if render_hostname and render_hostname not in ALLOWED_HOSTS:
 default_cors_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+
+    # Production React frontend
+    "https://anmol-automobile-frontend.vercel.app",
 ]
 
 env_cors_origins = os.getenv(
@@ -105,6 +110,14 @@ for origin in default_cors_origins:
 # CSRF
 # ============================================================
 
+default_csrf_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+
+    # Production React frontend
+    "https://anmol-automobile-frontend.vercel.app",
+]
+
 env_csrf_origins = os.getenv(
     "CSRF_TRUSTED_ORIGINS",
     "",
@@ -115,6 +128,12 @@ CSRF_TRUSTED_ORIGINS = [
     for origin in env_csrf_origins.split(",")
     if origin.strip()
 ]
+
+for origin in default_csrf_origins:
+    if origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(
+            origin
+        )
 
 
 # ============================================================
@@ -335,7 +354,6 @@ SIMPLE_JWT = {
     ),
 }
 
-
 BLACKLIST_AFTER_ROTATION = True
 
 
@@ -362,8 +380,8 @@ CLOUDINARY_API_SECRET = os.getenv(
 
 if not DEBUG:
 
-    # Render/reverse proxy forwards the original protocol
-    # through this header.
+    # Render/reverse proxy forwards the original
+    # protocol through this header.
     SECURE_PROXY_SSL_HEADER = (
         "HTTP_X_FORWARDED_PROTO",
         "https",
