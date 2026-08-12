@@ -110,3 +110,59 @@ class VehicleImage(models.Model):
 
     def __str__(self):
         return f"Image - {self.vehicle}"
+
+
+class Testimonial(models.Model):
+
+    customer_name = models.CharField(
+        max_length=150,
+    )
+
+    customer_location = models.CharField(
+        max_length=150,
+        blank=True,
+    )
+
+    review = models.TextField()
+
+    rating = models.PositiveSmallIntegerField(
+        default=5,
+    )
+
+    customer_image_url = models.URLField(
+        blank=True,
+    )
+
+    customer_image_public_id = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="testimonials",
+    )
+
+    is_published = models.BooleanField(
+        default=False,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+    is_featured = models.BooleanField(
+    default=False,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.customer_name} - {self.rating}/5"

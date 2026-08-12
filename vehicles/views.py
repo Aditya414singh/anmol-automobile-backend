@@ -1,19 +1,19 @@
 from decimal import Decimal, InvalidOperation
 
 import cloudinary.uploader
+from cloudinary.uploader import upload, destroy
 
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
-
 from users.permissions import IsManager
-
-from .models import Vehicle, VehicleImage
+from .models import Vehicle, VehicleImage,Testimonial
 from .serializers import (
     VehicleImageCreateSerializer,
     VehicleImageSerializer,
     VehicleSerializer,
+    TestimonialSerializer,
 )
 
 
@@ -700,6 +700,438 @@ class VehicleImageDeleteView(APIView):
             {
                 "success": True,
                 "message": "Vehicle image deleted successfully.",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+# ============================================================
+# PUBLIC - TESTIMONIALS
+# ============================================================
+
+
+class PublicTestimonialListView(APIView):
+    """
+    Public endpoint.
+
+    Returns the latest 6 published testimonials.
+    """
+
+    permission_classes = [
+        # Public endpoint
+    ]
+
+    def get(self, request):
+
+        testimonials = (
+            Testimonial.objects
+            .filter(is_published=True)
+            .order_by("-created_at")[:6]
+        )
+
+        serializer = TestimonialSerializer(
+            testimonials,
+            many=True,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Testimonials fetched successfully.",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# PUBLIC - SUBMIT TESTIMONIAL
+# ============================================================
+
+
+class SubmitTestimonialView(APIView):
+    """
+    Allows customers to submit testimonials.
+
+    Submitted testimonials are unpublished by default
+    and must be approved by a manager.
+    """
+
+    permission_classes = []
+
+    def post(self, request):
+
+        serializer = TestimonialSerializer(
+            data=request.data
+        )
+
+        if not serializer.is_valid():
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid testimonial data.",
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        testimonial = serializer.save(
+            is_published=False,
+            is_featured=False,
+        )
+
+        # ----------------------------------------------------
+        # Optional customer image upload
+        # ----------------------------------------------------
+
+        image = request.FILES.get(
+            "customer_image"
+        )
+
+        if image:
+
+            try:
+
+                result = upload(
+                    image,
+                    folder="anmol_automobile/testimonials",
+                )
+
+                testimonial.customer_image_url = (
+                    result.get("secure_url", "")
+                )
+
+                testimonial.customer_image_public_id = (
+                    result.get("public_id", "")
+                )
+
+                testimonial.save()
+
+            except Exception as exc:
+
+                return Response(
+                    {
+                        "success": False,
+                        "message": (
+                            "Testimonial was created, "
+                            "but image upload failed."
+                        ),
+                        "error": str(exc),
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Thank you for your feedback. "
+                    "Your testimonial will be reviewed "
+                    "before being published."
+                ),
+                "data": TestimonialSerializer(
+                    testimonial
+                ).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ============================================================
+# MANAGER - TESTIMONIALS
+# ============================================================
+
+
+class ManagerTestimonialListView(APIView):
+    """
+    Manager can see all testimonials including
+    pending, published and featured testimonials.
+    """
+
+    permission_classes = [
+        IsManager
+    ]
+
+    def get(self, request):
+
+        testimonials = (
+            Testimonial.objects
+            .all()
+            .order_by("-created_at")
+        )
+
+        serializer = TestimonialSerializer(
+            testimonials,
+            many=True,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Manager testimonials "
+                    "fetched successfully."
+                ),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# MANAGER - APPROVE / FEATURE TESTIMONIAL
+# ============================================================
+
+
+class ApproveTestimonialView(APIView):
+    """
+    Manager approves a testimonial.
+
+    Optional is_featured can also be supplied.
+    """
+
+    permission_classes = [
+        IsManager
+    ]
+
+    def put(
+        self,
+        request,
+        testimonial_id,
+    ):
+
+        try:
+
+            testimonial = Testimonial.objects.get(
+                id=testimonial_id
+            )
+
+        except Testimonial.DoesNotExist:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Testimonial not found.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        testimonial.is_published = True
+
+        if "is_featured" in request.data:
+
+            testimonial.is_featured = bool(
+                request.data.get(
+                    "is_featured"
+                )
+            )
+
+        testimonial.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Testimonial approved successfully."
+                ),
+                "data": TestimonialSerializer(
+                    testimonial
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# MANAGER - UPDATE TESTIMONIAL
+# ============================================================
+
+
+class UpdateTestimonialView(APIView):
+    """
+    Manager can edit testimonial information
+    and publication status.
+    """
+
+    permission_classes = [
+        IsManager
+    ]
+
+    def put(
+        self,
+        request,
+        testimonial_id,
+    ):
+
+        try:
+
+            testimonial = Testimonial.objects.get(
+                id=testimonial_id
+            )
+
+        except Testimonial.DoesNotExist:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Testimonial not found.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = TestimonialSerializer(
+            testimonial,
+            data=request.data,
+            partial=True,
+        )
+
+        if not serializer.is_valid():
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Invalid testimonial data.",
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer.save()
+
+        # ----------------------------------------------------
+        # Optional new customer image
+        # ----------------------------------------------------
+
+        image = request.FILES.get(
+            "customer_image"
+        )
+
+        if image:
+
+            try:
+
+                # Delete old Cloudinary image
+                if testimonial.customer_image_public_id:
+
+                    try:
+
+                        destroy(
+                            testimonial.customer_image_public_id
+                        )
+
+                    except Exception:
+                        pass
+
+                # Upload new image
+                result = upload(
+                    image,
+                    folder="anmol_automobile/testimonials",
+                )
+
+                testimonial.customer_image_url = (
+                    result.get("secure_url", "")
+                )
+
+                testimonial.customer_image_public_id = (
+                    result.get("public_id", "")
+                )
+
+                testimonial.save()
+
+            except Exception as exc:
+
+                return Response(
+                    {
+                        "success": False,
+                        "message": (
+                            "Testimonial updated, "
+                            "but image upload failed."
+                        ),
+                        "error": str(exc),
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Testimonial updated successfully."
+                ),
+                "data": TestimonialSerializer(
+                    testimonial
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# MANAGER - DELETE TESTIMONIAL
+# ============================================================
+
+
+class DeleteTestimonialView(APIView):
+    """
+    Manager can permanently delete a testimonial.
+
+    If the testimonial has a Cloudinary image,
+    that image is also deleted.
+    """
+
+    permission_classes = [
+        IsManager
+    ]
+
+    def delete(
+        self,
+        request,
+        testimonial_id,
+    ):
+
+        try:
+
+            testimonial = Testimonial.objects.get(
+                id=testimonial_id
+            )
+
+        except Testimonial.DoesNotExist:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Testimonial not found.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # ----------------------------------------------------
+        # Delete Cloudinary image
+        # ----------------------------------------------------
+
+        if testimonial.customer_image_public_id:
+
+            try:
+
+                destroy(
+                    testimonial.customer_image_public_id
+                )
+
+            except Exception:
+
+                # Don't block testimonial deletion
+                # if Cloudinary deletion fails.
+                pass
+
+        testimonial.delete()
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Testimonial deleted successfully."
+                ),
+                "data": None,
             },
             status=status.HTTP_200_OK,
         )
