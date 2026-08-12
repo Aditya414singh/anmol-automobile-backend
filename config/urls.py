@@ -17,4 +17,8 @@ urlpatterns = [
         "api/v1/vehicles/",
         include("vehicles.urls"),
     ),
+    path(
+        "api/v1/testimonials/",
+        include("vehicles.testimonial_urls"),
+    ),
 ]

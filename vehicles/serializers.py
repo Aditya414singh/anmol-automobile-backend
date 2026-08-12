@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+from .models import Testimonial
 from .models import Vehicle, VehicleImage
 
 
@@ -76,3 +76,97 @@ class VehicleImageCreateSerializer(serializers.Serializer):
         required=False,
         default=False,
     )
+
+
+class ObjectIdRelatedField(serializers.PrimaryKeyRelatedField):
+    """
+    Handles MongoDB ObjectId primary keys.
+
+    DRF's default PrimaryKeyRelatedField expects integer IDs,
+    while Django MongoDB backend uses ObjectId.
+    """
+
+    def to_representation(self, value):
+        return str(value)
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError(
+                "Invalid vehicle ID."
+            )
+
+
+class TestimonialSerializer(serializers.ModelSerializer):
+
+    # MongoDB ObjectId -> string
+    id = serializers.SerializerMethodField()
+
+    vehicle = ObjectIdRelatedField(
+        queryset=Vehicle.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
+    class Meta:
+        model = Testimonial
+
+        fields = [
+            "id",
+            "customer_name",
+            "customer_location",
+            "review",
+            "rating",
+            "customer_image_url",
+            "customer_image_public_id",
+            "vehicle",
+            "is_published",
+            "is_featured",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "customer_image_url",
+            "customer_image_public_id",
+            "is_published",
+            "is_featured",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_id(self, obj):
+        return str(obj.id)
+
+    def validate_rating(self, value):
+
+        if value < 1 or value > 5:
+            raise serializers.ValidationError(
+                "Rating must be between 1 and 5."
+            )
+
+        return value
+
+    def validate_customer_name(self, value):
+
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Customer name is required."
+            )
+
+        return value
+
+    def validate_review(self, value):
+
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Review cannot be empty."
+            )
+
+        return value
