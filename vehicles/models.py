@@ -166,3 +166,62 @@ class Testimonial(models.Model):
 
     def __str__(self):
         return f"{self.customer_name} - {self.rating}/5"
+
+
+class VehicleDelivery(models.Model):
+
+    vehicle = models.ForeignKey(
+        Vehicle,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deliveries",
+    )
+
+    customer_name = models.CharField(
+        max_length=150,
+        blank=True,
+    )
+
+    customer_location = models.CharField(
+        max_length=150,
+        blank=True,
+    )
+
+    delivery_date = models.DateField()
+
+    image_url = models.URLField()
+
+    public_id = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    caption = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
+    is_published = models.BooleanField(
+        default=False,
+    )
+
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True,
+    )
+
+    class Meta:
+        ordering = [
+            "-delivery_date",
+            "-created_at",
+        ]
+
+    def __str__(self):
+        return (
+            f"{self.customer_name} - "
+            f"{self.delivery_date}"
+        )

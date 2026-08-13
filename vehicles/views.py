@@ -6,14 +6,16 @@ from cloudinary.uploader import upload, destroy
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated,AllowAny
 from users.permissions import IsManager
-from .models import Vehicle, VehicleImage,Testimonial
+from .models import Vehicle, VehicleImage,Testimonial,VehicleDelivery
+
 from .serializers import (
     VehicleImageCreateSerializer,
     VehicleImageSerializer,
     VehicleSerializer,
     TestimonialSerializer,
+    VehicleDeliverySerializer,
 )
 
 
@@ -1130,6 +1132,328 @@ class DeleteTestimonialView(APIView):
                 "success": True,
                 "message": (
                     "Testimonial deleted successfully."
+                ),
+                "data": None,
+            },
+            status=status.HTTP_200_OK,
+        )
+# ============================================================
+# PUBLIC - VEHICLE DELIVERIES
+# ============================================================
+
+class VehicleDeliveryListView(APIView):
+    """
+    Public endpoint for published vehicle deliveries.
+
+    By default:
+    - Returns all published deliveries.
+
+    Optional:
+    - ?limit=6
+      Returns only the latest 6 published deliveries.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+
+        deliveries = (
+            VehicleDelivery.objects
+            .filter(
+                is_published=True
+            )
+            .order_by(
+                "-delivery_date",
+                "-created_at",
+            )
+        )
+
+        # ----------------------------------------------------
+        # OPTIONAL LIMIT
+        # ----------------------------------------------------
+
+        limit = request.query_params.get(
+            "limit"
+        )
+
+        if limit is not None:
+
+            try:
+                limit = int(limit)
+
+                # Ignore invalid/non-positive values
+                if limit > 0:
+                    deliveries = deliveries[:limit]
+
+            except (TypeError, ValueError):
+                # If limit is invalid, simply return
+                # all published deliveries.
+                pass
+
+        serializer = VehicleDeliverySerializer(
+            deliveries,
+            many=True,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Published vehicle deliveries "
+                    "fetched successfully."
+                ),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+# ============================================================
+# MANAGER - VEHICLE DELIVERIES
+# ============================================================
+
+
+class ManagerVehicleDeliveryListView(APIView):
+    """
+    Manager can see all deliveries.
+
+    Includes:
+    - Pending deliveries
+    - Published deliveries
+    """
+
+    permission_classes = [IsManager]
+
+    def get(self, request):
+
+        deliveries = (
+            VehicleDelivery.objects
+            .all()
+            .order_by(
+                "-delivery_date",
+                "-created_at",
+            )
+        )
+
+        serializer = VehicleDeliverySerializer(
+            deliveries,
+            many=True,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Manager deliveries "
+                    "fetched successfully."
+                ),
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# MANAGER - CREATE DELIVERY
+# ============================================================
+
+
+class VehicleDeliveryCreateView(APIView):
+    """
+    Manager creates a vehicle delivery.
+
+    The delivery image is uploaded to Cloudinary.
+    New deliveries remain unpublished by default.
+    """
+
+    permission_classes = [IsManager]
+
+    def post(self, request):
+
+        serializer = VehicleDeliverySerializer(
+            data=request.data
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "success": False,
+                    "message": "Validation failed.",
+                    "errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        image = request.FILES.get("image")
+
+        if not image:
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "Delivery image is required."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            upload_result = upload(
+                image,
+                folder="anmol_automobile/deliveries",
+            )
+
+        except Exception as exc:
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "Delivery image upload failed."
+                    ),
+                    "error": str(exc),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        delivery = serializer.save(
+            image_url=upload_result.get(
+                "secure_url",
+                "",
+            ),
+            public_id=upload_result.get(
+                "public_id",
+                "",
+            ),
+            is_published=False,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Vehicle delivery created "
+                    "successfully. It is waiting "
+                    "for publication."
+                ),
+                "data": VehicleDeliverySerializer(
+                    delivery
+                ).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ============================================================
+# MANAGER - PUBLISH DELIVERY
+# ============================================================
+
+
+class ApproveVehicleDeliveryView(APIView):
+    """
+    Manager publishes a vehicle delivery.
+    """
+
+    permission_classes = [IsManager]
+
+    def put(
+        self,
+        request,
+        delivery_id,
+    ):
+
+        try:
+            delivery = VehicleDelivery.objects.get(
+                id=delivery_id
+            )
+
+        except VehicleDelivery.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "Vehicle delivery not found."
+                    ),
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        delivery.is_published = True
+        delivery.save()
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Vehicle delivery published "
+                    "successfully."
+                ),
+                "data": VehicleDeliverySerializer(
+                    delivery
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ============================================================
+# MANAGER - DELETE DELIVERY
+# ============================================================
+
+
+class DeleteVehicleDeliveryView(APIView):
+    """
+    Manager can permanently delete a delivery.
+
+    The associated Cloudinary image is also deleted.
+    """
+
+    permission_classes = [IsManager]
+
+    def delete(
+        self,
+        request,
+        delivery_id,
+    ):
+
+        try:
+            delivery = VehicleDelivery.objects.get(
+                id=delivery_id
+            )
+
+        except VehicleDelivery.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": (
+                        "Vehicle delivery not found."
+                    ),
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # ----------------------------------------------------
+        # Delete Cloudinary image
+        # ----------------------------------------------------
+
+        if delivery.public_id:
+
+            try:
+                destroy(
+                    delivery.public_id
+                )
+
+            except Exception:
+                # Do not block database deletion
+                # if Cloudinary deletion fails.
+                pass
+
+        delivery.delete()
+
+        return Response(
+            {
+                "success": True,
+                "message": (
+                    "Vehicle delivery deleted "
+                    "successfully."
                 ),
                 "data": None,
             },

@@ -10,16 +10,30 @@ from .views import (
     VehicleDeleteView,
     VehicleImageCreateView,
     VehicleImageDeleteView,
+
+    VehicleDeliveryListView,
+    ManagerVehicleDeliveryListView,
+    VehicleDeliveryCreateView,
+    ApproveVehicleDeliveryView,
+    DeleteVehicleDeliveryView,
 )
 
 
 urlpatterns = [
+
+    # ==========================================================
+    # PUBLIC VEHICLES
+    # ==========================================================
 
     path(
         "",
         VehicleListView.as_view(),
         name="vehicle-list",
     ),
+
+    # ==========================================================
+    # MANAGER VEHICLES
+    # ==========================================================
 
     path(
         "manager/",
@@ -38,6 +52,10 @@ urlpatterns = [
         VehicleCreateView.as_view(),
         name="vehicle-create",
     ),
+
+    # ==========================================================
+    # VEHICLE IMAGES
+    # ==========================================================
 
     path(
         "<str:vehicle_id>/images/",
@@ -63,7 +81,45 @@ urlpatterns = [
         name="vehicle-delete",
     ),
 
-    # Keep public detail LAST
+    # ==========================================================
+    # VEHICLE DELIVERIES
+    # ==========================================================
+
+    path(
+        "deliveries/",
+        VehicleDeliveryListView.as_view(),
+        name="delivery-list",
+    ),
+
+    path(
+        "deliveries/manager/",
+        ManagerVehicleDeliveryListView.as_view(),
+        name="manager-delivery-list",
+    ),
+
+    path(
+        "deliveries/create/",
+        VehicleDeliveryCreateView.as_view(),
+        name="delivery-create",
+    ),
+
+    path(
+        "deliveries/<str:delivery_id>/approve/",
+        ApproveVehicleDeliveryView.as_view(),
+        name="delivery-approve",
+    ),
+
+    path(
+        "deliveries/<str:delivery_id>/delete/",
+        DeleteVehicleDeliveryView.as_view(),
+        name="delivery-delete",
+    ),
+
+    # ==========================================================
+    # PUBLIC VEHICLE DETAIL
+    # KEEP THIS LAST
+    # ==========================================================
+
     path(
         "<str:vehicle_id>/",
         VehicleDetailView.as_view(),

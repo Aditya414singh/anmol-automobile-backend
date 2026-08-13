@@ -21,4 +21,8 @@ urlpatterns = [
         "api/v1/testimonials/",
         include("vehicles.testimonial_urls"),
     ),
+    path(
+    "api/v1/featured/",
+    include("featured.urls"),
+    ),
 ]
