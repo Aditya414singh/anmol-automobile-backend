@@ -157,6 +157,7 @@ INSTALLED_APPS = [
 
     "users",
     "vehicles.apps.VehiclesConfig",
+    "featured",
 ]
 
 

@@ -1,6 +1,5 @@
 from rest_framework import serializers
-from .models import Testimonial
-from .models import Vehicle, VehicleImage
+from .models import Vehicle, VehicleImage,VehicleDelivery,Testimonial
 
 
 class VehicleImageSerializer(serializers.ModelSerializer):
@@ -170,3 +169,64 @@ class TestimonialSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+class VehicleDeliverySerializer(serializers.ModelSerializer):
+
+    # MongoDB ObjectId -> string
+    id = serializers.SerializerMethodField()
+
+    # MongoDB ObjectId vehicle relation -> string
+    vehicle = ObjectIdRelatedField(
+        queryset=Vehicle.objects.all(),
+        required=False,
+        allow_null=True,
+    )
+
+    vehicle_name = serializers.SerializerMethodField()
+
+    vehicle_model = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VehicleDelivery
+
+        fields = [
+            "id",
+            "vehicle",
+            "vehicle_name",
+            "vehicle_model",
+            "customer_name",
+            "customer_location",
+            "delivery_date",
+            "image_url",
+            "public_id",
+            "caption",
+            "is_published",
+            "created_at",
+            "updated_at",
+        ]
+
+        read_only_fields = [
+            "id",
+            "image_url",
+            "public_id",
+            "vehicle_name",
+            "vehicle_model",
+            "is_published",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_id(self, obj):
+        return str(obj.id)
+
+    def get_vehicle_name(self, obj):
+        if obj.vehicle:
+            return obj.vehicle.name
+
+        return None
+
+    def get_vehicle_model(self, obj):
+        if obj.vehicle:
+            return obj.vehicle.model
+
+        return None
