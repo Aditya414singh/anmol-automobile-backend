@@ -25,6 +25,22 @@ load_dotenv(BASE_DIR / ".env")
 # ============================================================
 
 SECRET_KEY = os.getenv("SECRET_KEY")
+BREVO_API_KEY = os.getenv(
+    "BREVO_API_KEY"
+)
+
+BREVO_SENDER_EMAIL = os.getenv(
+    "BREVO_SENDER_EMAIL"
+)
+
+BREVO_SENDER_NAME = os.getenv(
+    "BREVO_SENDER_NAME",
+    "Anmol Automobiles",
+)
+
+MANAGER_EMAIL = os.getenv(
+    "MANAGER_EMAIL"
+)
 
 if not SECRET_KEY:
     raise RuntimeError(
@@ -158,6 +174,7 @@ INSTALLED_APPS = [
     "users",
     "vehicles.apps.VehiclesConfig",
     "featured",
+    "enquiries",
 ]
 
 
@@ -330,6 +347,10 @@ REST_FRAMEWORK = {
         "rest_framework.parsers.MultiPartParser",
         "rest_framework.parsers.FormParser",
     ],
+
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "5/hour",
+    },
 }
 
 
