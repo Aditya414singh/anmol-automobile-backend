@@ -99,9 +99,11 @@ if (
 default_cors_origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 
     # Production React frontend
-    "https://anmol-automobile-frontend.vercel.app",
+    "https://anmolautomobiles.vercel.app",
 ]
 
 env_cors_origins = os.getenv(
@@ -131,7 +133,7 @@ default_csrf_origins = [
     "http://127.0.0.1:5173",
 
     # Production React frontend
-    "https://anmol-automobile-frontend.vercel.app",
+    "https://anmolautomobiles.vercel.app",
 ]
 
 env_csrf_origins = os.getenv(
