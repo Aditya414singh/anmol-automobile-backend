@@ -25,4 +25,8 @@ urlpatterns = [
     "api/v1/featured/",
     include("featured.urls"),
     ),
+    path(
+    "api/v1/enquiries/",
+    include("enquiries.urls"),
+    ),
 ]
